@@ -1,0 +1,9 @@
+dir_home=C:/Users/Sanjay/Documents/Larman Lab/AVARDA 1.1/
+file_annotation=VirScan_v1_annot.txt
+file_aln=pep_against_human_viruses.tblastn.species.noseg.max_target_seqs100000.171227.m8.txt
+zscore_file=virus_pairwise_zscores_after.csv
+use_filter=yes
+Z_threshold=10
+p_threshold=0.01
+x_threshold=2
+bh_threshold=0.05
