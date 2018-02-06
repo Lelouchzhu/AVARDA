@@ -18,12 +18,12 @@ class phip:
     
     def dependent_peptides(self):
         self.dependent_pep = {}
-        file_dependent = self.par['dir_ref_seq']+'virus_dependent_peptides.csv'
+        file_dependent = self.par['dir_ref_seq']+'virus_dependent_peptides_trunc.csv'
         f = open(file_dependent, 'r')
         for line in f:
             line = line.split(',')
-            pep1 = str(line[1])
-            pep2 = str(line[3])
+            pep1 = str(line[0])
+            pep2 = str(line[1])
             if pep1 in self.dependent_pep:
                 self.dependent_pep[pep1].append(pep2)
             else:
@@ -34,7 +34,7 @@ class phip:
     def run_analysis(self):
         zdf = flex_array.standard_df(self.par['zscore_file'])
         
-        binary_b = flex_array.binary_aln_df(self.par['file_aln'])
+        binary_b = flex_array.sparse_aln_df(self.par['file_aln'])
         binary_b = flex_array.array(binary_b).filter_aln()
         binary_b=binary_b.reindex(zdf.index).fillna(0)
     

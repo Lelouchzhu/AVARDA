@@ -39,6 +39,12 @@ def full_aln_df(infile):
     aln_df.fillna(0, inplace=True)
     return aln_df
 
+def sparse_aln_df(infile):
+    aln_df = pd.read_pickle(infile)
+    binary_b = pd.DataFrame(np.where(aln_df > 0, 1, 0))
+    binary_b.fillna(0, inplace=True)
+    return binary_b
+
 class array:
     def __init__(self, array):
         self.array = array
