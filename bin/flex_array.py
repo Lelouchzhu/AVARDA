@@ -42,7 +42,8 @@ def full_aln_df(infile):
 def sparse_aln_df(infile):
     print('Reading alignment file: ' + infile)
     aln_df = pd.read_pickle(infile)
-    binary_b = pd.DataFrame(np.where(aln_df > 0, 1, 0), index=[str(i) for i in aln_df.index])
+    #aln_df = aln_df.to_dense()
+    binary_b = pd.DataFrame(np.where(aln_df > 0, 1, 0), index=[str(i) for i in aln_df.index], columns=aln_df.columns)
     binary_b.fillna(0, inplace=True)
     return binary_b
 
@@ -52,8 +53,7 @@ class array:
 	
 	def filter_aln(self, min_alignments=10):
 		time1 = timeit.default_timer()
-		virus_sums = self.array.apply(np.sum, axis=0, raw=True, reduce=True)
-		
+		virus_sums = self.array.apply(np.sum, axis=0)
 		viruses = list(self.array.columns)
 		virus_intersections = pd.DataFrame(index=viruses, columns=viruses)
 		for i in viruses:
