@@ -21,13 +21,13 @@ class phip:
 		file_dependent = self.par['dir_ref_seq']+'virus_dependent_peptides_trunc.csv'
 		f = open(file_dependent, 'r')
 		for line in f:
-			line = line.split(',')
+			line = line.strip().split(',')
 			pep1 = str(line[0])
 			pep2 = str(line[1])
 			if pep1 in self.dependent_pep:
 				self.dependent_pep[pep1].append(pep2)
 			else:
-				self.dependent_pep[pep1]=[pep2]
+				self.dependent_pep[pep1] = [pep2]
 		f.close()
 		return self.dependent_pep
 	
