@@ -139,6 +139,7 @@ class array:
 		return self.array
 	
 	def binom_reassign(self, input_num, ref_seq, p_threshold=0.01, hits_threshold=2, organism=False):
+		time1 = timeit.default_timer()
 		#Read probability files
 		if organism:
 			org=ref_seq+'org_'
@@ -161,7 +162,7 @@ class array:
 		p_series = pd.Series(index=list(self.array.columns))
 		
 		#Number of hits to each virus
-		ranked_hits = self.array.apply(sum, axis=0)
+		ranked_hits = self.array.apply(np.count_nonzero, axis=0)
 		orig_viruses = self.array.columns
 		self.array = self.array[ranked_hits[ranked_hits>0].index]
 		#Calculate p-values for each virus based on the number of total hits
@@ -181,17 +182,18 @@ class array:
 		
 		while len(ranked_hits)>0 and ranked_hits.iloc[0]>0:
 			#Comparing top hit to everything else (reassignments only)
+			self.array = self.array.astype(bool) #cast to bool for faster computation
 			for i in specie[1:]:
 				#Top hit virus (binary vector)
 				highrank = self.array[specie[0]]
-				high_num = sum(highrank)
 				i_rank = self.array[i]
-				i_num = sum(i_rank)
 				#element-wise multiplication to get the vector of shared peptides
 				shared_peps = np.multiply(i_rank, highrank)
-				shared_num = sum(shared_peps)
+				shared_num = np.count_nonzero(shared_peps)
 				#Only do reassignment/sim tags if there is overlap between the two viruses
 				if shared_num > 0:
+					high_num = np.count_nonzero(highrank)
+					i_num = np.count_nonzero(i_rank)
 					#If only one passes the threshold, reassign peptides accordingly
 					if is_sig(second_round_prob.loc[i,specie[0]], n_rank-shared_num, high_num-shared_num) and not is_sig(second_round_prob.loc[specie[0],i], n_rank-shared_num, i_num-shared_num):#highrank_pvalue < p_threshold and i_pvalue >= p_threshold and high_num-shared_num > hits_threshold and i_num-shared_num > hits_threshold:
 						#Subtract shared peptides from the insignificant virus
@@ -199,20 +201,23 @@ class array:
 					elif not is_sig(second_round_prob.loc[i,specie[0]], n_rank-shared_num, high_num-shared_num) and is_sig(second_round_prob.loc[specie[0],i], n_rank-shared_num, i_num-shared_num):#highrank_pvalue >= p_threshold and i_pvalue < p_threshold and high_num-shared_num > hits_threshold and i_num-shared_num > hits_threshold:
 						#Same as above
 						self.array.loc[:,specie[0]] = highrank-shared_peps
+					self.array = self.array.astype(bool) #recast in case of subtraction back to int
 			
 			#Add p-value to series after any potential reassignments
 			top_hit = specie[0]
-			p_series[top_hit] = binom_test(p=first_round_prob[top_hit], n=n_rank, x=sum(self.array[top_hit]), alternative='greater')
+			p_series[top_hit] = binom_test(p=first_round_prob[top_hit], n=n_rank, x=np.count_nonzero(self.array[top_hit]), alternative='greater')
 			
 			#Figure out how many peptides were globally unique to highrank
 			high_peptides = np.where(self.array[specie[0]] == 1)[0]
-			high_unique = len(np.where(self.array.iloc[high_peptides,:].apply(sum, axis=1) == 1)[0])
+			#high_hits = self.array[self.array[specie[0]]==1].apply(np.count_nonzero, axis=1)
+			#high_unique = len(high_hits[high_hits==1])
+			high_unique = len(np.where(self.array.iloc[high_peptides,:].apply(np.count_nonzero, axis=1) == 1)[0])
 			
 			#Now remove the highest hit since it will not be involved in subsequent comparisons
 			specie.remove(specie[0])
 			#Re-rank virus hits by total binomial
-			ranked_hits = self.array.apply(sum, axis=0)
-			ranked_hits = ranked_hits[specie]
+			ranked_hits = self.array.apply(np.count_nonzero, axis=0)
+			#ranked_hits = ranked_hits[specie] (unnecessary)
 			virus_pvalues_1 = pd.Series(index=specie)
 			#Adjust the n used for binomial tests
 			n_rank -= high_unique
@@ -225,7 +230,7 @@ class array:
 			ranked_hits = ranked_hits[specie]
 		
 		#Calculate sim tags after performing all peptide reassignments
-		ranked_hits = self.array.apply(sum, axis=0)
+		ranked_hits = self.array.apply(np.count_nonzero, axis=0)
 		virus_pvalues_1 = pd.Series(index=list(self.array.columns))
 		for i in virus_pvalues_1.index:
 			virus_pvalues_1[i] = binom_test(p=first_round_prob[i], n=input_num, x=ranked_hits[i], alternative='greater')
@@ -239,16 +244,17 @@ class array:
 		
 		n_rank = input_num
 		
+		self.array = self.array.astype(bool)
 		while len(ranked_hits)>0 and ranked_hits.iloc[0]>0:
 			for i in specie[1:]:
 				highrank = self.array[specie[0]]
-				high_num = sum(highrank)
 				i_rank = self.array[i]
-				i_num = sum(i_rank)
 				shared_peps = np.multiply(i_rank, highrank)
-				shared_num = sum(shared_peps)
+				shared_num = np.count_nonzero(shared_peps)
 				#Only do sim tags if there is overlap between the two viruses
 				if shared_num > 0:
+					high_num = np.count_nonzero(highrank)
+					i_num = np.count_nonzero(i_rank)
 					#If neither passes (using shared test, symmetric probability table) and neither can stand on their own:
 					if is_sig(third_round_prob.loc[i,specie[0]], n_rank-(high_num-shared_num)-(i_num-shared_num), shared_num) and not is_sig(second_round_prob.loc[i,specie[0]], n_rank-shared_num, high_num-shared_num) and not is_sig(second_round_prob.loc[specie[0],i], n_rank-shared_num, i_num-shared_num):
 						#If neither of them already has a sim tag
@@ -261,25 +267,34 @@ class array:
 							sim_tag.loc[i] = sim_tag[specie[0]]
 						elif sim_tag[i] != 0 and sim_tag[specie[0]] == 0:
 							sim_tag.loc[specie[0]] = sim_tag[i]
+					#self.array = self.array.astype(bool)
 			
 			#Figure out how many peptides were globally unique to highrank
+			
 			high_peptides = np.where(self.array[specie[0]] == 1)[0]
-			high_unique = len(np.where(self.array.iloc[high_peptides,:].apply(sum, axis=1) == 1)[0])
+			high_unique = len(np.where(self.array.iloc[high_peptides,:].apply(np.count_nonzero, axis=1) == 1)[0])
+			
+			#high_hits = self.array[self.array[specie[0]]==1].apply(np.count_nonzero, axis=1)
+			#high_unique = np.count_nonzero(high_hits)#len(high_hits[high_hits==1])
 			#Now remove the highest hit since it will not be involved in subsequent comparisons
 			specie.remove(specie[0])
-			#Re-rank virus hits by total binomial
-			ranked_hits = self.array.apply(sum, axis=0)
-			ranked_hits = ranked_hits[specie]
-			virus_pvalues_1 = pd.Series(index=specie)
+			#Re-rank virus hits by total binomial (UNNECESSARY)
+			#ranked_hits = self.array.apply(np.count_nonzero, axis=0)
+			#ranked_hits = ranked_hits[specie]
+			#virus_pvalues_1 = pd.Series(index=specie)
 			n_rank -= high_unique
+			'''
 			for i in specie:
 				virus_pvalues_1[i] = binom_test(p=first_round_prob[i], n=n_rank, x=ranked_hits[i], alternative='greater')
 			#Sort viruses by p-value
+			'''
+			virus_pvalues_1 = virus_pvalues_1[specie]
 			virus_pvalues_1.sort_values(inplace=True, ascending=True)
 			#Sort virus hits series by p-value
 			specie = list(virus_pvalues_1.index)
 			ranked_hits = ranked_hits[specie]
 		
+		self.array = self.array.astype(int)
 		#Generate unique values matrix
 		glob_unique = self.array.copy()
 		for i in glob_unique.index:
@@ -295,7 +310,7 @@ class array:
 		p_series = p_series.reindex(orig_viruses, fill_value=0)
 		orig_pseries = orig_pseries.reindex(orig_viruses, fill_value=0)
 		
-		print("Done with reassignments!")
+		print("Done with reassignments! Time: ", timeit.default_timer()-time1)
 		return self.array, glob_unique, sim_tag, p_series, orig_pseries#, p_adjust_series
 		
 	def names_string(self, cutoff=0.001):

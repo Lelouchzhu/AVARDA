@@ -134,5 +134,6 @@ class phip:
 						f.write(str(hits_series[i])+'\t'+str(nonoverlap_hits_series[i])+'\n')
 		f.close()
 		print("End of run.")
+		return None
 		#End
 		
