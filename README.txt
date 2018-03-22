@@ -1,6 +1,6 @@
-Anti-Viral Antibody Response Deconvolution Algorithm (AVARDA) v1.1
-Date: February 9th, 2018
-@Architects: Ben Larman, Daniel Monaco, Sanjay Kottapalli
+Anti-Viral Antibody Response Deconvolution Algorithm (AVARDA) v1.2
+Date: March 22nd, 2018
+@Architects: Ben Larman, Sanjay Kottapalli, Daniel Monaco
 @Developers: Sanjay Kottapalli, Tiezheng Yuan
 Language: Python version 3.6
 For bugs or help, contact Sanjay: skottap3@jhu.edu
@@ -52,3 +52,13 @@ relevant, and contains a tab-delimited list of all samples and their detected
 viral infections.
 
 -------------------------------------------------------------------------------
+
+CHANGE LOGS:
+v1.0: First python3 implementation. Full functionality.
+v1.1: Full compatibility testing for updated imported modules. Performance 
+improvement to reassignments function- only compare viruses to which at least
+one hit aligns.
+v1.2: Further, extensive performance update in reassignments function. Deleted
+unnecessary operations. Re-positioned cpu-intensive lines strategically.
+Switched to using boolean arrays and np.count_nonzero() instead of binary int
+arrays and sum(). Overall ~2-3x faster than v1.1.
